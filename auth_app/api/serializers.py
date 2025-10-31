@@ -5,8 +5,8 @@ from rest_framework.authtoken.models import Token
 class RegistrationSerializer(serializers.ModelSerializer):
     repeated_password = serializers.CharField(write_only=True)
     fullname = serializers.CharField(max_length=150, required=True, trim_whitespace=True)
-    token = serializers.CharField(read_only=True)
-    user_id = serializers.CharField(read_only=True)
+    token = serializers.CharField(read_only=True, source="auth_token.key")
+    user_id = serializers.CharField(read_only=True, source="id")
 
     class Meta:
         model = User
@@ -16,7 +16,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         }
 
     def validate_email(self, data):
-        if (User.objects.filter(email=data)):
+        if (User.objects.filter(email=data).exists()):
             raise serializers.ValidationError({"Error": "Email is already in use!"})
         return data
 
@@ -30,9 +30,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         pw = validated_data.pop("password", None)
         full_name = validated_data.pop("fullname", None)
         user = User.objects.create_user(username=full_name, password=pw, **validated_data)
-        token = Token.objects.create(user=user)
-        user.token = token
-        user.user_id = user.id
+        Token.objects.get_or_create(user=user)
         user.fullname = full_name
         return user
 
